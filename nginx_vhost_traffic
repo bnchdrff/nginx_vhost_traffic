@@ -13,8 +13,7 @@
 # env.vhosts "example.com example.net example.org"
 # 
 # Log path
-# env.logdir = /var/log/nginx
-# env.flogfile = access.log 
+# env.logfile = /var/log/nginx/access.log 
 #
 # Position of the $bytes_sent in the access.log file
 # env.bparam 11
@@ -30,9 +29,8 @@
 # inspired in postfix_filtered_awk 
 # Copyright (c) 2010, Joan Perez i Cauhe
 
-LOGDIR=${logdir:-/var/log/nginx}
-ACCESS_LOG=$LOGDIR/${logfile:-access.log}
-LOGTAIL=${logtail:-`which logtail`}
+ACCESS_LOG=${logfile:-'/var/log/nginx/access.log'}
+LOGTAIL=${logtail:-'/usr/sbin/logtail'}
 STATEFILE=/var/lib/munin/plugin-state/nginx_vhost_traffic.state
 #VHOSTS=${vhosts:-`hostname`}
 VHOSTS=`grep 'Domain name:' /etc/nginx/sites-enabled/* | sed 's/.*name: //'`
@@ -99,6 +97,7 @@ END {
     }
   }
   print "agregate: " ENVIRON["AGGREGATE"]
-  for (vhost in track) print "vhost" track[vhost] ".value " res[vhost]+0
+  for (vhost in track) print "vhost" track[vhost] ".value " res[vhost] + 0
   print "rest.value " rest + 0
 }'
+
