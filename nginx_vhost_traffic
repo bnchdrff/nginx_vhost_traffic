@@ -34,34 +34,35 @@ LOGDIR=${logdir:-/var/log/nginx}
 ACCESS_LOG=$LOGDIR/${logfile:-access.log}
 LOGTAIL=${logtail:-`which logtail`}
 STATEFILE=/var/lib/munin/plugin-state/nginx_vhost_traffic.state
-VHOSTS=${vhosts:-`hostname`}
+#VHOSTS=${vhosts:-`hostname`}
+VHOSTS=`grep 'Domain name:' /etc/nginx/sites-enabled/* | sed 's/.*name: //'`
 AGGREGATE=${aggregate:true}
 
 BPARAM=${bparam:-11}
 
 case $1 in
-   config)
-   	DRAW=AREA
-	echo 'graph_title Nginx Virtual host traffic'
-	echo 'graph_vlabel bits out / ${graph_period}'
-	echo 'graph_args --base 1000 -l 0'
-	echo 'graph_category Nginx'
+  config)
+    DRAW=AREA
+    echo 'graph_title Nginx Virtual host traffic'
+    echo 'graph_vlabel bits out / ${graph_period}'
+    echo 'graph_args --base 1000 -l 0'
+    echo 'graph_category Nginx'
 
-	i=0
-	for vhost in $VHOSTS 
-	do 
-		i=$(($i + 1))
-		echo vhost$i.label $vhost
-		echo vhost$i.type ABSOLUTE
-		echo vhost$i.cdef vhost$i,8,*
-		echo vhost$i.draw $DRAW
-		DRAW=STACK
-	done
-	
-	echo rest.label Rest
-	echo rest.type ABSOLUTE
-	echo rest.cdef rest,8,*
-	echo rest.draw STACK
+    i=0
+    for vhost in $VHOSTS 
+    do 
+      i=$(($i + 1))
+      echo vhost$i.label $vhost
+      echo vhost$i.type ABSOLUTE
+      echo vhost$i.cdef vhost$i,8,*
+      echo vhost$i.draw $DRAW
+      DRAW=STACK
+    done
+    
+    echo rest.label Rest
+    echo rest.type ABSOLUTE
+    echo rest.cdef rest,8,*
+    echo rest.draw STACK
     exit 0;;
 esac
 
@@ -70,34 +71,34 @@ export VHOSTS
 export AGGREGATE
 
 # Awk Script
-$LOGTAIL -f${ACCESS_LOG} -o$STATEFILE | awk '
+$LOGTAIL -t -f${ACCESS_LOG} -o$STATEFILE | awk '
 
 BEGIN { 
 split(ENVIRON["VHOSTS"], hosts)
-for (host in hosts) { track[hosts[host]] = host}
+  for (host in hosts) { track[hosts[host]] = host}
 }        
 {
-		cn[$2]+=$ENVIRON["BPARAM"]
+    cn[$2]+=$ENVIRON["BPARAM"]
 }
 END { 
-		for (host in cn) {		
-		if (match(ENVIRON["AGGREGATE"], "true")) {	
-			found = 0
-			for (vhost in track) {
-				if (index(host, vhost)) {
-				res[vhost] += cn[host]
-				found = 1
-				break
-				}
-			}
-			if (! found) rest+=cn[host]
-		} else {
-			if (host in track) {
-				res[host] += cn[host]	
-			} else rest+=cn[host]
-		}
-		}
-		print "agregate: " ENVIRON["AGGREGATE"]
-		for (vhost in track) print "vhost" track[vhost] ".value " res[vhost]+0
-		print "rest.value " rest + 0
+  for (host in cn) {
+    if (match(ENVIRON["AGGREGATE"], "true")) {  
+      found = 0
+      for (vhost in track) {
+        if (index(host, vhost)) {
+          res[vhost] += cn[host]
+          found = 1
+          break
+        }
+      }
+      if (! found) rest+=cn[host]
+    } else {
+      if (host in track) {
+        res[host] += cn[host]  
+      } else rest+=cn[host]
+    }
+  }
+  print "agregate: " ENVIRON["AGGREGATE"]
+  for (vhost in track) print "vhost" track[vhost] ".value " res[vhost]+0
+  print "rest.value " rest + 0
 }'
